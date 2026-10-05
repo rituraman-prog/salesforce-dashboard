@@ -1,7 +1,9 @@
-# Environment variables
+# Environment variables and session files
 .env
 .env.local
 .env.production
+.sf_session
+*_session
 
 # Virtual environment
 venv/
@@ -9,10 +11,15 @@ env/
 *.pyc
 __pycache__/
 
-# Database
-data/
+# Database (but allow JSON exports)
+data/*.db
+data/*.sqlite
 *.db
 *.sqlite
+
+# Allow these data files for GitHub
+!data/opportunities.json
+!data/last_sync.txt
 
 # Uploads
 uploads/
@@ -42,3 +49,4 @@ browser_data/
 # Test files
 test_*.py
 *_test.py
+credentials.conf
