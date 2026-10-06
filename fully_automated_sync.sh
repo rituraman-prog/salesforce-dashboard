@@ -10,23 +10,30 @@ echo "========================================================================"
 echo "Started: $(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
-# Step 1: Auto-export from Salesforce (browser automation)
-echo "Step 1: Logging into Salesforce and exporting data..."
+# Step 1: SKIP browser automation (requires manual login with authenticator)
+# Browser automation disabled - using existing CSV instead
+echo "Step 1: Using existing CSV (browser automation skipped)"
 echo "────────────────────────────────────────────────────────"
+echo "ℹ️  Browser automation requires manual login"
+echo "   To get fresh data: Export CSV from Salesforce manually"
+echo ""
 
-source venv/bin/activate
-python3 auto_export_final.py
+# Process existing CSVs
+./auto_process_csv.sh
+exit $?
 
-if [ $? -ne 0 ]; then
-    echo "❌ Auto-export failed"
-    echo ""
-    echo "Falling back to manual CSV processing..."
-    # Fall back to processing existing CSVs
-    ./auto_process_csv.sh
-    exit $?
-fi
+# DISABLED: Browser automation (kept for reference)
+# source venv/bin/activate
+# python3 auto_export_final.py
+# if [ $? -ne 0 ]; then
+#     echo "❌ Auto-export failed"
+#     echo ""
+#     echo "Falling back to manual CSV processing..."
+#     ./auto_process_csv.sh
+#     exit $?
+# fi
 
-# Step 2: Move downloaded CSV to uploads folder
+# Step 2: Move downloaded CSV to uploads folder (DISABLED)
 echo ""
 echo "Step 2: Moving CSV to uploads folder..."
 echo "────────────────────────────────────────────────────────"
