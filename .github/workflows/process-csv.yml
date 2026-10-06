@@ -71,14 +71,15 @@ jobs:
           sys.path.insert(0, '.')
           from app import process_csv, read_csv_with_encoding
 
-          # Find latest CSV
+          # Find latest CSV by filename (has timestamp in name)
           csv_files = glob.glob('uploads/*.csv')
           if not csv_files:
               print("❌ No CSV files found in uploads/")
               sys.exit(1)
 
-          latest_csv = max(csv_files, key=os.path.getctime)
-          print(f"📄 Processing: {latest_csv}")
+          # Sort by filename (descending) since filenames have timestamps
+          latest_csv = sorted(csv_files, reverse=True)[0]
+          print(f"📄 Processing latest CSV: {latest_csv}")
           print()
 
           try:
