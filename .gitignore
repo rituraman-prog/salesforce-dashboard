@@ -21,9 +21,12 @@ data/*.sqlite
 !data/opportunities.json
 !data/last_sync.txt
 
-# Uploads
-uploads/
+# CSV files (except in uploads/ - needed for GitHub Actions)
 *.csv
+!uploads/*.csv
+
+# Keep uploads directory structure
+uploads/.gitkeep
 
 # Logs
 *.log
