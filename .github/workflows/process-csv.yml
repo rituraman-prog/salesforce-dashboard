@@ -9,6 +9,10 @@ on:
   # Allow manual trigger
   workflow_dispatch:
 
+# Allow GitHub Actions to write to repository
+permissions:
+  contents: write
+
 jobs:
   process-and-update:
     runs-on: ubuntu-latest
