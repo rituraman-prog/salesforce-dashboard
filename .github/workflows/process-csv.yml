@@ -107,7 +107,7 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          git add data/opportunities.json data/last_sync.txt opportunities.db
+          git add data/opportunities.json data/last_sync.txt
 
           if git diff --cached --quiet; then
             echo "ℹ️ No changes to commit"
