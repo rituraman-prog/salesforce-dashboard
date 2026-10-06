@@ -1,0 +1,168 @@
+name: Process Salesforce CSV and Update Dashboard
+
+on:
+  # Trigger when CSV files are pushed to uploads/
+  push:
+    paths:
+      - 'uploads/*.csv'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  process-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask pandas openpyxl
+
+      - name: 🗑️ Clear database for fresh import
+        run: |
+          python3 << 'EOF'
+          import sqlite3
+          import os
+
+          # Create db_helper.py if it doesn't exist
+          db_helper_content = '''import sqlite3
+          import os
+
+          def get_db_connection():
+              db_path = os.path.join(os.path.dirname(__file__), 'opportunities.db')
+              conn = sqlite3.connect(db_path)
+              conn.row_factory = sqlite3.Row
+              return conn
+          '''
+
+          with open('db_helper.py', 'w') as f:
+              f.write(db_helper_content)
+
+          from db_helper import get_db_connection
+
+          conn = get_db_connection()
+          cursor = conn.cursor()
+
+          # Create table if it doesn't exist
+          cursor.execute('''
+              CREATE TABLE IF NOT EXISTS opportunities (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT,
+                  special_term TEXT,
+                  billing_frequency TEXT,
+                  pm1 TEXT,
+                  pm2 TEXT,
+                  opportunity_owner TEXT,
+                  region TEXT,
+                  subregion TEXT,
+                  account_number TEXT,
+                  amount_currency TEXT,
+                  amount REAL,
+                  close_date TEXT,
+                  opportunity_stage TEXT,
+                  billings_currency TEXT,
+                  billings REAL,
+                  actual_remaining_currency TEXT,
+                  actual_remaining REAL,
+                  invoiced_currency TEXT,
+                  invoiced REAL,
+                  po_number TEXT,
+                  exclude_from_billing TEXT,
+                  opportunity_id TEXT UNIQUE,
+                  csv_source TEXT,
+                  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )
+          ''')
+
+          print("🗑️ Clearing database...")
+          cursor.execute('DELETE FROM opportunities')
+          conn.commit()
+
+          count = cursor.execute('SELECT COUNT(*) FROM opportunities').fetchone()[0]
+          print(f"✅ Database cleared! Records: {count}")
+
+          conn.close()
+          EOF
+
+      - name: 📊 Process latest CSV
+        run: |
+          python3 << 'EOF'
+          import sys
+          import os
+          import glob
+
+          sys.path.insert(0, '.')
+          from app import process_csv, read_csv_with_encoding
+
+          # Find latest CSV
+          csv_files = glob.glob('uploads/*.csv')
+          if not csv_files:
+              print("❌ No CSV files found in uploads/")
+              sys.exit(1)
+
+          latest_csv = max(csv_files, key=os.path.getctime)
+          print(f"📄 Processing: {latest_csv}")
+          print()
+
+          try:
+              df = read_csv_with_encoding(latest_csv)
+              print(f"✅ Read {len(df)} records from CSV")
+
+              result = process_csv(df, latest_csv)
+
+              if result.get('success'):
+                  print(f"\n✅ Processing complete!")
+                  print(f"   New records: {result.get('new', 0)}")
+                  print(f"   Updated records: {result.get('updated', 0)}")
+                  print(f"   TOTAL: {result.get('new', 0) + result.get('updated', 0)}")
+                  sys.exit(0)
+              else:
+                  print(f"❌ Error: {result.get('error', 'Unknown')}")
+                  sys.exit(1)
+          except Exception as e:
+              print(f"❌ Error: {str(e)}")
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
+          EOF
+
+      - name: 📤 Export to JSON
+        run: python3 export_to_json.py
+
+      - name: 🔄 Commit and push changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add data/opportunities.json data/last_sync.txt opportunities.db
+
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit"
+            exit 0
+          fi
+
+          RECORD_COUNT=$(grep "Total opportunities" data/last_sync.txt | awk '{print $3}')
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M UTC')
+
+          git commit -m "🤖 Auto-update: $RECORD_COUNT opportunities ($TIMESTAMP)"
+          git push
+
+          echo ""
+          echo "========================================="
+          echo "✅ Dashboard Updated Successfully!"
+          echo "========================================="
+          echo "📊 Opportunities: $RECORD_COUNT"
+          echo "🌐 Dashboard: https://rituraman-prog.github.io/salesforce-dashboard/"
+          echo "========================================="
